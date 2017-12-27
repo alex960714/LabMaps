@@ -1,26 +1,29 @@
 package com.example.user.labmaps;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 
+import android.support.v4.content.ContextCompat;
 import android.view.View;
 import android.widget.Button;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.*;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private Button newMarkerBtn;
     private Button delMarkerBtn;
-    private ArrayList<Marker> markers;
+    private ArrayList<LatLng> places;
+    private Iterator<LatLng> iter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,9 +34,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        places = new ArrayList<>();
         newMarkerBtn = (Button)findViewById(R.id.newMarkerButton);
-
-        markers=new ArrayList<>();
     }
 
 
@@ -47,16 +49,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * installed Google Play services and returned to the app.
      */
     @Override
-    public void onMapReady(GoogleMap googleMap) {
+    public void onMapReady(final GoogleMap googleMap) {
         mMap = googleMap;
 
         mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
             @Override
             public void onMapLongClick(LatLng latLng) {
-                mMap.addMarker(new MarkerOptions().position(latLng)
+                MarkerOptions markerOptions = new MarkerOptions().position(latLng)
                         .title(Double.valueOf(latLng.latitude).toString()
                                 + " " + Double.valueOf(latLng.longitude).toString())
-                        .draggable(true));
+                        .draggable(true);
+                mMap.addMarker(markerOptions);
+                places.add(markerOptions.getPosition());
+                iter = places.listIterator();
             }
         });
 
@@ -72,7 +77,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setOnMarkerDragListener(new GoogleMap.OnMarkerDragListener() {
             @Override
             public void onMarkerDragStart(Marker marker) {
-
+                places.remove(marker.getPosition());
             }
 
             @Override
@@ -84,8 +89,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onMarkerDragEnd(Marker marker) {
                 marker.setTitle(Double.valueOf(marker.getPosition().latitude).toString()
                         + " "+ Double.valueOf(marker.getPosition().longitude).toString() );
+                places.add(marker.getPosition());
+                iter=places.listIterator();
             }
         });
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            mMap.setMyLocationEnabled(true);
+        }
+
+        newMarkerBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(places.size()!=0) {
+                    if (!iter.hasNext()) {
+                        iter = places.listIterator();
+                    }
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(iter.next()));
+                }
+            }
+        });
+
+
     }
 
     public void deleteMarker(final Marker marker){
@@ -93,6 +119,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         delMarkerBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                int ind = places.indexOf(marker.getPosition());
+                places.remove(ind);
+                iter = places.listIterator();
                 marker.remove();
             }
         });
@@ -105,10 +134,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 delMarkerBtn.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-
                     }
                 });
             }
         });
     }
+
 }
